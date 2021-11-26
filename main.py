@@ -12,6 +12,7 @@ from loguru import logger
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from pytorch_lightning.logging import TestTubeLogger
+from pytorch_lightning.logging import TensorBoardLogger
 from torch.backends import cudnn
 from torch.utils.data import DataLoader, Dataset
 
@@ -44,12 +45,17 @@ def main(hparams):
         mode='min'
     )
 
-    tt_logger = TestTubeLogger(
-        save_dir=hparams.run_dir,
+#    tt_logger = TestTubeLogger(
+#        save_dir=hparams.run_dir,
+#        name="lightning_logs",
+#        debug=False,
+#        create_git_tag=False
+#    )
+    tt_logger = TensorBoardLogger(
+        save_dir=hparams.run_dir, 
         name="lightning_logs",
-        debug=False,
-        create_git_tag=False
-    )
+        version=1)
+
 
     checkpoint = ModelCheckpoint(
         filepath=model_save_path,
@@ -66,7 +72,7 @@ def main(hparams):
             min_epochs=1,
             max_epochs=hparams.epochs,
             nb_sanity_val_steps=4,
-            checkpoint_callback=None,
+            checkpoint_callback=checkpoint,#
             val_percent_check=hparams.val_percent_check,
             val_check_interval=hparams.val_check_interval,
             early_stop_callback=None,
@@ -92,10 +98,10 @@ def parse_args():
     parser.add_argument('--devrun_size', type=int, default=10, help='size of dataset for dev run')
     parser.add_argument('--test', default=False, action='store_true', help='flag to indicate to run a test epoch only (not training will take place)')
 
-    parser.add_argument('--lr', type=float, default=0.001, help='initial learning rate')
+    parser.add_argument('--lr', type=float, default=0.0001, help='initial learning rate')
     parser.add_argument('--optimizer', type=str, default='adam')
     parser.add_argument('--momentum', type=float, default=0.9, help='momentum')
-    parser.add_argument('--epochs', type=int, default=50, help='upper epoch limit')
+    parser.add_argument('--epochs', type=int, default=150, help='upper epoch limit')
     parser.add_argument('--batch_size', type=int, default=2, metavar='N', help='batch size')
     parser.add_argument('--dropout', type=float,  default=0.0, help='dropout probability value')
     parser.add_argument('--seed', type=int, default=1245, help='random seed')
