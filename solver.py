@@ -85,7 +85,7 @@ class Solver(LightningModule):
     def build_model(self):
         self.segmentor = Segmentor(self.config)
 
-        if self.config.load_ckpt not in [None, "None"]:
+        if self.config.load_ckpt not in [None, "None"] and self.config.load_ckpt:
             logger.info(f"loading checkpoint from: {self.config.load_ckpt}")
             model_dict = self.segmentor.state_dict()
             weights = torch.load(self.config.load_ckpt, map_location='cuda:0')["state_dict"]
