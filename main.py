@@ -32,7 +32,7 @@ def main(hparams):
     logger.add(log_save_path, rotation="500 MB", compression='zip')
     logger.info(f"saving log in: {log_save_path}")
 
-    model_save_path = join(hparams.run_dir, "ckpt")
+    model_save_path = join(hparams.run_dir, "ckpt/top_segment.ckpt")
     logger.info(f"saving models in: {model_save_path}")
     logger.info(f"early stopping with patience of {hparams.patience}")
 
@@ -92,7 +92,7 @@ def parse_args():
 
     parser.add_argument('--run_dir', type=str, default='/tmp/segmentation', help='directory for saving run outputs (logs, ckpt, etc.)')
     parser.add_argument('--exp_name', type=str, default='segmentation_experiment', help='experiment name')
-    parser.add_argument('--load_ckpt', type=str, default=None, help='path to a pre-trained model, if provided, training will resume from that point')
+    parser.add_argument('--load_ckpt', type=str, default=False, help='path to a pre-trained model, if provided, training will resume from that point')
     parser.add_argument('--gpus', type=str, default='-1')
     parser.add_argument('--devrun', default=False, action='store_true', help='dev run on a dataset of size `devrun_size`')
     parser.add_argument('--devrun_size', type=int, default=10, help='size of dataset for dev run')
