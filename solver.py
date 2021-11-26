@@ -20,7 +20,7 @@ class Solver(LightningModule):
     def __init__(self, config):
         super(Solver, self).__init__()
         self.hparams = config
-
+        self.v_i =1
         if config.dataset == "timit":
             self.datasetClass = TimitDataset
         elif config.dataset == "buckeye":
@@ -208,10 +208,11 @@ class Solver(LightningModule):
         self.pr[prefix].update(seg, out['pred'])
         self.logger.experiment.add_scalar(f'{prefix}_loss',
                                             loss,
-                                            batch_i)
+                                            self.v_i)
         self.logger.experiment.add_scalar(f'{prefix}_phn_acc',
                                             phn_acc,
-                                            batch_i)
+                                            self.v_i)
+        self.v_i+=1
         return OrderedDict({f'{prefix}_loss': loss})
 
     def generic_eval_end(self, outputs, prefix):
