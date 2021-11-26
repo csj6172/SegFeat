@@ -57,7 +57,7 @@ class Solver(LightningModule):
                                        batch_size=self.config.batch_size,
                                        shuffle=True,
                                        collate_fn=collate_fn_padd,
-                                       num_workers=6)
+                                       num_workers=0)
         logger.info(f"input shape: {self.train_dataset[0][0].shape}")
         logger.info(f"training set length {len(self.train_dataset)}")
         return self.train_loader
@@ -68,7 +68,7 @@ class Solver(LightningModule):
                                        batch_size=self.config.batch_size,
                                        shuffle=False,
                                        collate_fn=collate_fn_padd,
-                                       num_workers=6)
+                                       num_workers=0)
         logger.info(f"validation set length {len(self.valid_dataset)}")
         return self.valid_loader
 
@@ -78,7 +78,7 @@ class Solver(LightningModule):
                                        batch_size=self.config.batch_size,
                                        shuffle=False,
                                        collate_fn=collate_fn_padd,
-                                       num_workers=6)
+                                       num_workers=0)
         logger.info(f"test set length {len(self.test_dataset)}")
         return self.test_loader
 
@@ -140,6 +140,12 @@ class Solver(LightningModule):
 
     def forward(self, x):
         pass
+    
+    def test_step(self, data_batch, batch_i):
+        return self.generic_eval_step(data_batch, batch_i, 'test')
+
+    def test_end(self, outputs):
+        return self.generic_eval_end(outputs, 'test')
 
     def training_step(self, data_batch, batch_i):
         """training_step
@@ -173,6 +179,15 @@ class Solver(LightningModule):
         logger.info(f"{progress} loss: {loss.item()}")
         logger.info(f"{progress} phn_acc: {phn_acc}, bin_acc: {bin_acc}")
         logger.info(f"{progress} f1: {prs[2][2]}\n")
+        self.logger.experiment.add_scalar('loss',
+                                            loss.item(),
+                                            batch_i)
+        self.logger.experiment.add_scalar('phn_acc',
+                                            phn_acc,
+                                            batch_i)
+        self.logger.experiment.add_scalar('f1_score',
+                                            prs[2][2],
+                                            batch_i)
 
         return OrderedDict({'loss': loss})
 
@@ -189,10 +204,14 @@ class Solver(LightningModule):
         bin_loss, bin_acc = self.bin_loss(seg, out['bin_out'])
         loss += self.config.bin_cls * bin_loss.cpu().item()
         self.bin_acc[prefix].update(bin_acc)
-
         # log metrics
         self.pr[prefix].update(seg, out['pred'])
-
+        self.logger.experiment.add_scalar(f'{prefix}_loss',
+                                            loss,
+                                            batch_i)
+        self.logger.experiment.add_scalar(f'{prefix}_phn_acc',
+                                            phn_acc,
+                                            batch_i)
         return OrderedDict({f'{prefix}_loss': loss})
 
     def generic_eval_end(self, outputs, prefix):
@@ -203,7 +222,6 @@ class Solver(LightningModule):
             if self.trainer.use_dp:
                 loss = torch.mean(loss)
             loss_mean += loss
-
         loss_mean /= len(outputs)
 
         eval_pr       = self.pr[prefix].get_final_metrics()
@@ -251,11 +269,6 @@ class Solver(LightningModule):
     def validation_epoch_end(self, outputs):
         return self.generic_eval_end(outputs, 'val')
 
-    def test_step(self, data_batch, batch_i):
-        return self.generic_eval_step(data_batch, batch_i, 'test')
-
-    def test_epoch_end(self, outputs):
-        return self.generic_eval_end(outputs, 'test')
 
     def configure_optimizers(self):
         optimizer = {'adam':     torch.optim.Adam(self.segmentor.parameters(), lr=self.config.lr),
