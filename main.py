@@ -15,7 +15,7 @@ from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.logging import TensorBoardLogger
 from torch.backends import cudnn
 from torch.utils.data import DataLoader, Dataset
-
+import os
 from solver import Solver
 
 
@@ -32,7 +32,7 @@ def main(hparams):
     logger.add(log_save_path, rotation="500 MB", compression='zip')
     logger.info(f"saving log in: {log_save_path}")
 
-    model_save_path = join(hparams.run_dir, "ckpt/top_segment.ckpt")
+    model_save_path = join(hparams.run_dir, "ckpt")
     logger.info(f"saving models in: {model_save_path}")
     logger.info(f"early stopping with patience of {hparams.patience}")
 
@@ -52,10 +52,9 @@ def main(hparams):
 #        create_git_tag=False
 #    )
     tt_logger = TensorBoardLogger(
-        save_dir=hparams.run_dir, 
-        name="lightning_logs",
-        version=1)
-
+        save_dir=hparams.run_dir,
+        version=0, 
+        name="lightning_logs")
 
     checkpoint = ModelCheckpoint(
         filepath=model_save_path,
@@ -64,21 +63,20 @@ def main(hparams):
         monitor='val_f1_at_2',
         mode='max'
     )
-
+    
     trainer = Trainer(
             logger=tt_logger,
             overfit_pct=hparams.overfit,
+            checkpoint_callback=False,
             check_val_every_n_epoch=1,
             min_epochs=1,
             max_epochs=hparams.epochs,
             nb_sanity_val_steps=4,
-            checkpoint_callback=checkpoint,#
             val_percent_check=hparams.val_percent_check,
             val_check_interval=hparams.val_check_interval,
-            early_stop_callback=None,
             gpus=hparams.gpus,
             show_progress_bar=False,
-            distributed_backend=None,
+            distributed_backend=None
             )
 
     if not hparams.test:
