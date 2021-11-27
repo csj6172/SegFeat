@@ -14,13 +14,15 @@ from dataloader import (BuckeyeDataset, TimitDataset, collate_fn_padd,
                         segmentation_to_binary_mask)
 from model import Segmentor
 from utils import PrecisionRecallMetricMultiple, StatsMeter
-
+import os
 
 class Solver(LightningModule):
     def __init__(self, config):
         super(Solver, self).__init__()
         self.hparams = config
         self.v_i =1
+        self.t_i=1
+        self.e=1
         if config.dataset == "timit":
             self.datasetClass = TimitDataset
         elif config.dataset == "buckeye":
@@ -181,13 +183,14 @@ class Solver(LightningModule):
         logger.info(f"{progress} f1: {prs[2][2]}\n")
         self.logger.experiment.add_scalar('loss',
                                             loss.item(),
-                                            batch_i)
+                                            self.t_i)
         self.logger.experiment.add_scalar('phn_acc',
                                             phn_acc,
-                                            batch_i)
+                                            self.t_i)
         self.logger.experiment.add_scalar('f1_score',
                                             prs[2][2],
-                                            batch_i)
+                                            self.t_i)
+        self.t_i+=1
 
         return OrderedDict({'loss': loss})
 
@@ -212,7 +215,7 @@ class Solver(LightningModule):
         self.logger.experiment.add_scalar(f'{prefix}_phn_acc',
                                             phn_acc,
                                             self.v_i)
-        self.v_i+=1
+        self.v_i +=1
         return OrderedDict({f'{prefix}_loss': loss})
 
     def generic_eval_end(self, outputs, prefix):
@@ -267,7 +270,10 @@ class Solver(LightningModule):
     def validation_step(self, data_batch, batch_i):
         return self.generic_eval_step(data_batch, batch_i, 'val')
 
-    def validation_epoch_end(self, outputs):
+    def validation_end(self, outputs):
+        print("epoch{} checkpoint save".format(self.e))
+        torch.save(self.segmentor.state_dict(), os.path.join(self.config.run_dir,'ckpt/{}.ckpt'.format(self.e)))
+        self.e+=1
         return self.generic_eval_end(outputs, 'val')
 
 
