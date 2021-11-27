@@ -69,7 +69,7 @@ def main(hparams):
             overfit_pct=hparams.overfit,
             checkpoint_callback=False,
             check_val_every_n_epoch=1,
-            min_epochs=1,
+            min_epochs=hparams.epochs,
             max_epochs=hparams.epochs,
             nb_sanity_val_steps=4,
             val_percent_check=hparams.val_percent_check,
