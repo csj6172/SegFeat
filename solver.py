@@ -272,7 +272,7 @@ class Solver(LightningModule):
 
     def validation_end(self, outputs):
         print("epoch{} checkpoint save".format(self.e))
-        torch.save(self.segmentor.state_dict(), os.path.join(self.config.run_dir,'ckpt/{}.ckpt'.format(self.e)))
+        torch.save({'state_dict':self.segmentor.state_dict()}, os.path.join(self.config.run_dir,'ckpt/{}.ckpt'.format(self.e)))
         self.e+=1
         return self.generic_eval_end(outputs, 'val')
 
