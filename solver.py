@@ -209,25 +209,28 @@ class Solver(LightningModule):
         self.bin_acc[prefix].update(bin_acc)
         # log metrics
         self.pr[prefix].update(seg, out['pred'])
-        self.logger.experiment.add_scalar(f'{prefix}_loss',
-                                            loss,
-                                            self.v_i)
-        self.logger.experiment.add_scalar(f'{prefix}_phn_acc',
-                                            phn_acc,
-                                            self.v_i)
-        self.v_i +=1
-        return OrderedDict({f'{prefix}_loss': loss})
+        return OrderedDict({f'{prefix}_loss': loss,
+                            f'{prefix}_phn_acc':phn_acc})
 
     def generic_eval_end(self, outputs, prefix):
         loss_mean = 0
-
+        phn_acc_mean =0
         for output in outputs:
             loss = output[f'{prefix}_loss']
+            phn_acc = output[f'{prefix}_phn_acc']
             if self.trainer.use_dp:
                 loss = torch.mean(loss)
             loss_mean += loss
+            phn_acc_mean += phn_acc
         loss_mean /= len(outputs)
-
+        phn_acc_mean /= len(outputs)
+        self.logger.experiment.add_scalar(f'{prefix}_loss',
+                                            loss_mean,
+                                            self.v_i)
+        self.logger.experiment.add_scalar(f'{prefix}_phn_acc',
+                                            phn_acc_mean,
+                                            self.v_i)
+        self.v_i +=1
         eval_pr       = self.pr[prefix].get_final_metrics()
         train_pr      = self.pr['train'].get_final_metrics()
         eval_phn_acc  = self.phn_acc[prefix].get_stats()
