@@ -20,9 +20,9 @@ class Solver(LightningModule):
     def __init__(self, config):
         super(Solver, self).__init__()
         self.hparams = config
-        self.v_i =1
+        self.v_i =0
         self.t_i=1
-        self.e=1
+        self.e=0
         if config.dataset == "timit":
             self.datasetClass = TimitDataset
         elif config.dataset == "buckeye":
@@ -106,7 +106,6 @@ class Solver(LightningModule):
         """cls_loss
         convert phn_gt to framewise ground truth and take the
         corss-entropy between prediction and truth.
-
         :param seg: segmentation
         :param phn_gt: list of phonemes for segmentation above
         :param phn_hat: framewise prediction of phonemes
@@ -125,7 +124,6 @@ class Solver(LightningModule):
         """bin_loss
         transform the segmentation to a binary vector with 1 at boundaries
         and 0 elsewhere. take the cross-entropy between precition and truth
-
         :param seg: segmentation
         :param bin_hat: binary vector, 1s where a boundary is predicted
                         and 0 elsewhere
@@ -153,7 +151,6 @@ class Solver(LightningModule):
         """training_step
         forward 1 training step. calc ranking, phoneme classification
         and boundary classification losses.
-
         :param data_batch:
         :param batch_i:
         """
@@ -224,13 +221,6 @@ class Solver(LightningModule):
             phn_acc_mean += phn_acc
         loss_mean /= len(outputs)
         phn_acc_mean /= len(outputs)
-        self.logger.experiment.add_scalar(f'{prefix}_loss',
-                                            loss_mean,
-                                            self.v_i)
-        self.logger.experiment.add_scalar(f'{prefix}_phn_acc',
-                                            phn_acc_mean,
-                                            self.v_i)
-        self.v_i +=1
         eval_pr       = self.pr[prefix].get_final_metrics()
         train_pr      = self.pr['train'].get_final_metrics()
         eval_phn_acc  = self.phn_acc[prefix].get_stats()
@@ -255,10 +245,24 @@ class Solver(LightningModule):
                    f'std_train_bin_acc':             train_bin_acc[1]})
 
         # aggregate val/test metrics
+        if self.v_i!=0:
+            self.logger.experiment.add_scalar(f'{prefix}_loss',
+                                                loss_mean,
+                                                self.v_i)
+            self.logger.experiment.add_scalar(f'{prefix}_phn_acc',
+                                                phn_acc_mean,
+                                                self.v_i)
+            
         for level, (precision, recall, f1) in eval_pr.items():
             metrics[f"{prefix}_precision_at_{level}"] = precision
             metrics[f"{prefix}_recall_at_{level}"]    = recall
             metrics[f"{prefix}_f1_at_{level}"]        = f1
+            if self.v_i!=0:
+                self.logger.experiment.add_scalar(f"{prefix}_f1_at_{level}",
+                                            f1,
+                                            self.v_i)
+        self.v_i +=1
+        
 
         # aggregate train metrics
         for level, (precision, recall, f1) in train_pr.items():
@@ -274,8 +278,9 @@ class Solver(LightningModule):
         return self.generic_eval_step(data_batch, batch_i, 'val')
 
     def validation_end(self, outputs):
-        print("epoch{} checkpoint save".format(self.e))
-        torch.save({'state_dict':self.segmentor.state_dict()}, os.path.join(self.config.run_dir,'ckpt/{}.ckpt'.format(self.e)))
+        if self.e!=0:
+          print("epoch{} checkpoint save".format(self.e))
+          torch.save({'state_dict':self.segmentor.state_dict()}, os.path.join(self.config.run_dir,'ckpt/{}.ckpt'.format(self.e)))
         self.e+=1
         return self.generic_eval_end(outputs, 'val')
 
