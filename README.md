@@ -1,70 +1,71 @@
-# Phoneme Boundary Detection using Learnable Segmental Features (ICASSP 2020)
+# Phoneme Boundary Detection using Learnable Segmental Features (ICASSP 2020) + Ensemble model
 
-This repository provides a PyTorch implementation of the paper [Phoneme Boundary Detection using Learnable Segmental Features](https://arxiv.org/pdf/2002.04992.pdf).
+SegFeat(Phoneme Boundary Detection using Learnable Segmental Features) 모델과 Ensemble model을 각각 훈련 시킬 수 있는 모델이다.
 
-## Paper
-[Phoneme Boundary Detection using Learnable Segmental Features](https://arxiv.org/pdf/2002.04992.pdf)
-</br>
-[Felix Kreuk](https://scholar.google.co.il/citations?user=UiERcYsAAAAJ&hl=en), [Yaniv Sheena](https://dblp.org/pers/s/Sheena:Yaniv.html), [Joseph Keshet](http://u.cs.biu.ac.il/~jkeshet/), [Yossi Adi](https://scholar.google.co.il/citations?user=4W-HuYYAAAAJ&hl=en)
-</br>
-45th International Conference on Acoustics, Speech, and Signal Processing [ICASSP 2020](https://2020.ieeeicassp.org/)
+<img src=""  width="800" height="270"/>
+트레이닝 순서는 MFA, SegFeat, Ensemble model 순서로 진행해야 한다.
 
-Phoneme boundary detection plays an essential first step for a variety of speech processing applications such as speaker diarization, speech science, keyword spotting, etc. In this work, we propose a neural architecture coupled with a parameterized structured loss function to learn segmental representations for the task of phoneme boundary detection. First, we evaluated our model when the spoken phonemes were not given as input. Results on the TIMIT and Buckeye corpora suggest that the proposed model is superior to the baseline models and reaches state-of-the-art performance in terms of F1 and R-value. We further explore the use of phonetic transcription as additional supervision and show this yields minor improvements in performance but substantially better convergence rates. We additionally evaluate the model on a Hebrew corpus and demonstrate such phonetic supervision can be beneficial in a multi-lingual setting.
+MFA의 트레이닝 방법은 2번 항목
 
-If you find this implementation useful, please consider citing our work:
-```
-@inproceedings{kreuk2020phoneme,
-  title={Phoneme boundary detection using learnable segmental features},
-  author={Kreuk, Felix and Sheena, Yaniv and Keshet, Joseph and Adi, Yossi},
-  booktitle={ICASSP 2020-2020 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)},
-  pages={8089--8093},
-  year={2020},
-  organization={IEEE}
-}
-```
+SegFeat는 3번 항목
+
+Ensemble model은 4번 항목에 적혀 있다.
+
 
 ## Dependencies
 
 ```
+python==3.9
+torch==1.10.1
+librosa==0.8.1
+textgrid
 loguru==0.4.1
 boltons==20.0.0
-pandas==1.0.0
-pytorch-lightning==0.6.0
+pandas==1.3.5
+pytorch-lightning==1
 SoundFile==0.10.3.post1
 test-tube==0.7.5
-torch==1.4.0
-torchaudio==0.4.0
-torchvision==0.4.2
+torchaudio
+torchvision
 tqdm==4.42.1
+g2p_en
+Levenshtein
+argparse
 ```
 
 ## Usage
 
 ### 1. Clone the repository
 ```
-git clone https://github.com/felixkreuk/SegFeat.git
-cd SegFeat
+git clone https://open.oss.navercorp.com/NES/Segmentation_Ensemble_Model.git
+cd Segmentation_Ensemble_Model
 ```
 
 ### 2. Data structure
-The dataloader in `dataloader.py` assumes the dataset is structured as follows:
+'dataloader.py'에서 경로가 지정되어 있으며 구조는 아래와 같다.
 ```
 timit_directory
 │
-└───val
+└───test
 │   │   X.wav
 │   └─  X.phn
-│
-└───test
-│   │   Y.wav
-│   └─  Y.phn
+|   └─  X.TextGrid
+│   └─  X.lab
 │
 └───train
-    │   Z.wav
-    └─  Z.phn
+    │   Y.wav
+    └─  Y.phn
+    └─  Y.TextGrid
+    └─  Y.lab
 ```
 
-Where `X.wav` is a raw waveform signal, and `X.phn` is its' corresponding phoneme boundaries labeld with the following format:
+#### Audio
+```
+sampling_rate : 16000
+sample type : 1-channel pcm
+max_length : 5s
+```
+#### phn
 ```
 0 9640 h#
 9640 11240 sh
@@ -74,98 +75,144 @@ Where `X.wav` is a raw waveform signal, and `X.phn` is its' corresponding phonem
 16157 16880 dcl
 ...
 ```
-Where the two numbers each line represent the onset of offset of the phoneme (in samples), and the last element represents the phoneme identity.
+wav file의 음소와 onset, offset이 적혀져 있는 파일이다.
+(onset, offset, 음소)로 구성되어 있다.
+SegFeat와 Ensemble model의 지도학습 용도와 성능 평가 용도로 쓰인다.
 
-### 3. Training
-```
-python main.py --wav_path /path/to/timit/dataset --dataset timit --delta_feats --dist_feats
-```
-* If `--ckpt /path/to/model.ckpt` is present, then the training will resume from the given checkpoint.
-* Testing will begin when training finishes (max `epochs` is reached or when training is stopped via early-stopping).
-* For more details regarding possible run arguments, please see `python main.py --help`:
-```
-usage: main.py [-h] [--wav_path WAV_PATH] [--dataset {timit,buckeye}]
-               [--run_dir RUN_DIR] [--exp_name EXP_NAME]
-               [--load_ckpt LOAD_CKPT] [--gpus GPUS] [--devrun]
-               [--devrun_size DEVRUN_SIZE] [--lr LR] [--optimizer OPTIMIZER]
-               [--momentum MOMENTUM] [--epochs EPOCHS] [--batch_size N]
-               [--dropout DROPOUT] [--seed SEED] [--patience PATIENCE]
-               [--gamma GAMMA] [--overfit OVERFIT]
-               [--val_percent_check VAL_PERCENT_CHECK]
-               [--val_check_interval VAL_CHECK_INTERVAL]
-               [--val_ratio VAL_RATIO] [--rnn_input_size RNN_INPUT_SIZE]
-               [--rnn_hidden_size RNN_HIDDEN_SIZE] [--rnn_dropout RNN_DROPOUT]
-               [--birnn] [--rnn_layers RNN_LAYERS]
-               [--min_seg_size MIN_SEG_SIZE] [--max_seg_size MAX_SEG_SIZE]
-               [--max_len MAX_LEN] [--feats {mfcc,mel,spect}] [--random_trim]
-               [--delta_feats] [--dist_feats] [--normalize]
-               [--bin_cls BIN_CLS] [--phn_cls PHN_CLS] [--n_fft N_FFT]
-               [--hop_length HOP_LENGTH] [--n_mels N_MELS] [--n_mfcc N_MFCC]
 
-segmentation
+#### lab 
+```
+She had your dark suit in greasy wash water all year
+```
+wav file의 텍스트 레이블이다.
+MFA에서 TextGrid를 뽑을 때 사용된다.
 
-optional arguments:
-  -h, --help            show this help message and exit
-  --wav_path WAV_PATH
-  --dataset {timit,buckeye}
-  --run_dir RUN_DIR     directory for saving run outputs (logs, ckpt, etc.)
-  --exp_name EXP_NAME   experiment name
-  --load_ckpt LOAD_CKPT
-                        path to a pre-trained model, if provided, training
-                        will resume from that point
-  --gpus GPUS
-  --devrun              dev run on a dataset of size `devrun_size`
-  --devrun_size DEVRUN_SIZE
-                        size of dataset for dev run
-  --lr LR               initial learning rate
-  --optimizer OPTIMIZER
-  --momentum MOMENTUM   momentum
-  --epochs EPOCHS       upper epoch limit
-  --batch_size N        batch size
-  --dropout DROPOUT     dropout probability value
-  --seed SEED           random seed
-  --patience PATIENCE   patience for early stopping
-  --gamma GAMMA         gamma margin
-  --overfit OVERFIT     gamma margin
-  --val_percent_check VAL_PERCENT_CHECK
-                        how much of the validation set to check
-  --val_check_interval VAL_CHECK_INTERVAL
-                        validation check every K epochs
-  --val_ratio VAL_RATIO
-                        precentage of validation from train
-  --rnn_input_size RNN_INPUT_SIZE
-                        number of inputs
-  --rnn_hidden_size RNN_HIDDEN_SIZE
-                        RNN hidden layer size
-  --rnn_dropout RNN_DROPOUT
-                        dropout
-  --birnn               BILSTM, if define will be biLSTM
-  --rnn_layers RNN_LAYERS
-                        number of lstm layers
-  --min_seg_size MIN_SEG_SIZE
-                        minimal size of segment, examples with segments
-                        smaller than this will be ignored
-  --max_seg_size MAX_SEG_SIZE
-                        see `min_seg_size`
-  --max_len MAX_LEN     maximal size of sequences
-  --feats {mfcc,mel,spect}
-                        type of acoustic features to use
-  --random_trim         if this flag is on seuqences will be randomly trimmed
-  --delta_feats         if this flag is on delta features will be added
-  --dist_feats          if this flag is on the euclidean features will be
-                        added (see paper)
-  --normalize           flag to normalize features
-  --bin_cls BIN_CLS     coefficient of binary classification loss
-  --phn_cls PHN_CLS     coefficient of phoneme classification loss
-  --n_fft N_FFT         n_fft for feature extraction
-  --hop_length HOP_LENGTH
-                        hop_length for feature extraction
-  --n_mels N_MELS       number of mels
-  --n_mfcc N_MFCC       number of mfccs
+
+#### TextGrid 
+```
+    item [1]:
+        class = "IntervalTier" 
+        name = "words" 
+        xmin = 0 
+        xmax = 1 
+        intervals: size = 13 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.11 
+            text = "" 
+        intervals [2]:
+            xmin = 0.11 
+            xmax = 0.38 
+            text = "she" 
+    item [2]:
+        class = "IntervalTier" 
+        name = "phones" 
+        xmin = 0 
+        xmax = 1 
+        intervals: size = 36 
+        intervals [1]:
+            xmin = 0 
+            xmax = 0.11 
+            text = "" 
+        intervals [2]:
+            xmin = 0.11 
+            xmax = 0.28 
+            text = "SH" 
+        intervals [3]:
+            xmin = 0.28 
+            xmax = 0.38 
+            text = "IY1" 
+```
+MFA의 결과로 나오는 값이며, xmin(onset), xmax(offset), text(phoneme or words)로 구성되어 있다.
+Ensemble model의 input으로 들어간다.
+
+#### Timit data 받는 법
+```
+mkdir timit
+cd timit
+wget https://data.deepai.org/timit.zip
+unzip timit.zip
+cd ../
+python timit.py
+rm -r timit
 ```
 
-### 4. Testing
-To run a test epoch run the following command:
+#### MFA training
+
+아래와 같은 과정을 통해 TextGrid를 뽑을 수 있다.
 ```
-python main.py --wav_path /path/to/timit/ --dataset timit --delta_feats --dist_feats --load_ckpt segmentor.ckpt --test
+conda create -n aligner -c conda-forge montreal-forced-aligner openblas python=3.8 openfst pynini ngram baumwelch sox
+conda activate aligner
+wget http://www.openslr.org/resources/11/librispeech-lexicon.txt
+mfa train ./timit_directory/train librispeech-lexicon.txt ./out -o timit
+mv ./out/* ./timit_directory/train
+mfa align ./timit_directory/test librispeech-lexicon.txt timit.zip ./out
+mv ./out/* ./timit_directory/test
+```
+전체 훈련 시간은 1시간 정도 소요된다. 
+
+서버에는 '/home1/irteam/data' 디렉토리 안에 'timit_g2p'(g2p로 진행한 MFA)와 'timit_gold'(정답 음소로 진행한 MFA)가 각각 있다.
+
+
+### 3. SegFeat_Training and Test
+
+#### Training
+```
+python main.py --wav_path (timit directory) --run_dir (tensorboard 및 ckpt 저장되는 곳) --gpus (사용할 gpu 번호)
+```
+* run_dir/ckpt에 1epoch 마다 SegFeat model이 저장된다.
+* 논문에서는 150 epoch을 진행하였으며, 1 epoch당 1시간 정도 소요된다. 
+* --load_ckpt를 통해서 저장된 모델을 불러올 수 있다.
+
+
+#### Test
+```
+python main.py --wav_path (timit directory) --run_dir (tensorboard 및 ckpt 저장되는 곳) --gpus (사용할 gpu 번호) --load_ckpt (SegFeat 모델 체크포인트) --test
+```
+* 뒤에 test와 pretrain model을 load 해주는 것으로 테스트 가능하다.
+* 결과로는 테스트 셋의 precision-recall, f1-score, Accuracy를 얻을 수 있다.
+
+
+### 4. Ensemble_Training and Test
+
+#### Training
+```
+python main.py --wav_path (timit directory) --run_dir (tensorboard 및 ckpt 저장되는 곳) --gpus (사용할 gpu 번호) --ans
+```
+* --ans의 플래그를 세우는 것으로 Ensemble model의 training이 가능하다.
+* run_dir/ckpt에는 Segfeat 체크포인트가 아닌 Ensemble model의 체크포인트가 저장된다.
+* 20 epoch train 진행했으며, 1epoch당 1시간 정도 소요된다.
+
+#### Test
+```
+python main.py --wav_path (timit directory) --run_dir (tensorboard 및 ckpt 저장되는 곳) --gpus (사용할 gpu 번호) --load_ckpt (SegFeat 모델 체크포인트) --load_s (Ensemble 모델 체크포인트) --test --ans
+```
+* --ans 플래그와 SegFeat pretrain(--load_ckpt), Ensemble pretrain(--load_s)를 넣고 --test 플래그를 세우는 것으로 진행할 수 있다.
+* 결과로는 precision-recall, f1-score, accuracy, PER을 얻을 수 있다.
+* --output_save라는 플래그를 세우면, infer에 test한 결과들이 저장되며,
+```
+python evalu.py --path ./infer
+```
+를 통해서 MFA, SegFeat, Ensemble model 각각의 PER(Subsititution, Deletion, Insertion), Precision-recall, f1-score, R-value, Accuracy를 볼 수 있다.
+
+
+### 5. Pretrained Model, Output
+
+바로 Train하고 Test를 진행하기 위해, Pretrained Model과 Output을 미리 뽑아 올려두었다.
+
+* SegFeat Pretrained model : SegFeat_pretrain.ckpt
+* Ensemble Pretrained model(g2p) : ans_pretrain_g2p.ckpt
+* Ensemble Pretrained model(gold) : ans_pretrain_gold.ckpt
+* Ensemble model Output(g2p) : infer_g2p
+* Ensemble model Output(gold) : infer_gold
+* g2p는 MFA training 할 때 g2p로 트레이닝한 모델이다.
+* gold는 MFA training 할 때 정답 음소로 트레이닝한 모델이다.
+* output은 'evalu.py'를 통해서 성능을 알아볼 수 있다.
+```
+python evalu.py --path ./infer_g2p
+```
+
+### TensorBoard
+```
+tensorboard ./run_dir/segmentation_experiment/lightning_logs/
 ```
