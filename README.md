@@ -2,7 +2,7 @@
 
 SegFeat(Phoneme Boundary Detection using Learnable Segmental Features) 모델과 Ensemble model을 각각 훈련 시킬 수 있는 모델이다.
 
-<img src=""  width="800" height="270"/>
+<img src="https://user-images.githubusercontent.com/77380115/150287333-0040dd97-aab2-4b58-b740-c74a97841898.PNG"  width="800" height="270"/>
 트레이닝 순서는 MFA, SegFeat, Ensemble model 순서로 진행해야 한다.
 
 MFA의 트레이닝 방법은 2번 항목
